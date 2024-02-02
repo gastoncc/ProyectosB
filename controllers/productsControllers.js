@@ -1,70 +1,38 @@
-const { readProductsFromFile, readProductByIdFromFile, addProductToFile, updateProductByIdInFile, deleteProductByIdFromFile } = require('../models/productsModel');
-const { v4: uuidv4 } = require('uuid');
+const Product = require('../models/productsModels');
 
-async function getAllProducts(req, res) {
+exports.getAllProducts = async (req, res) => {
   try {
-    const products = await readProductsFromFile();
-    res.json(products);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error interno del servidor' });
-  }
-}
+    const { limit = 10, page = 1, sort, query } = req.query;
+    const skip = (page - 1) * limit;
+    const sortOptions = sort ? { price: sort === 'asc' ? 1 : -1 } : {};
+    const filter = query ? { category: query } : {};
 
-async function getProductById(req, res) {
-  try {
-    const productId = req.params.pid;
-    const product = await readProductByIdFromFile(productId);
-    if (product) {
-      res.json(product);
-    } else {
-      res.status(404).json({ error: 'Producto no encontrado' });
-    }
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error interno del servidor' });
-  }
-}
+    const products = await Product.find(filter)
+      .sort(sortOptions)
+      .limit(parseInt(limit))
+      .skip(skip);
 
-async function addProduct(req, res) {
-  try {
-    const newProduct = req.body;
-    newProduct.id = uuidv4();
-    await addProductToFile(newProduct);
-    res.status(201).json(newProduct);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error interno del servidor' });
-  }
-}
+    const totalProducts = await Product.countDocuments(filter);
+    const totalPages = Math.ceil(totalProducts / limit);
+    const hasNextPage = page < totalPages;
+    const hasPrevPage = page > 1;
 
-async function updateProduct(req, res) {
-  try {
-    const productId = req.params.pid;
-    const updatedProduct = req.body;
-    await updateProductByIdInFile(productId, updatedProduct);
-    res.json(updatedProduct);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error interno del servidor' });
-  }
-}
+    const response = {
+      status: 'success',
+      payload: products,
+      totalPages,
+      prevPage: hasPrevPage ? page - 1 : null,
+      nextPage: hasNextPage ? page + 1 : null,
+      page: parseInt(page),
+      hasPrevPage,
+      hasNextPage,
+      prevLink: hasPrevPage ? `/api/products?limit=${limit}&page=${page - 1}` : null,
+      nextLink: hasNextPage ? `/api/products?limit=${limit}&page=${page + 1}` : null,
+    };
 
-async function deleteProduct(req, res) {
-  try {
-    const productId = req.params.pid;
-    await deleteProductByIdFromFile(productId);
-    res.json({ message: 'Producto eliminado correctamente' });
+    res.json(response);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    res.status(500).json({ status: 'error', error: error.message });
   }
-}
-
-module.exports = {
-  getAllProducts,
-  getProductById,
-  addProduct,
-  updateProduct,
-  deleteProduct
 };
+

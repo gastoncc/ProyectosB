@@ -1,9 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const cartsController = require('../controllers/cartsController');
+const cartsController = require('../controllers/cartsControllers');
 
-router.post('/', cartsController.createCart);
-router.get('/:cid', cartsController.getCartProducts);
-router.post('/:cid/product/:pid', cartsController.addProductToCart);
+// Rutas para carritos
+router.get('/:cid', cartsController.getCartById);
+router.delete('/:cid/products/:pid', cartsController.deleteProductFromCart);
+router.put('/:cid', cartsController.updateCart);
+router.put('/:cid/products/:pid', cartsController.updateProductQuantity);
+router.delete('/:cid', cartsController.clearCart);
 
 module.exports = router;
+
